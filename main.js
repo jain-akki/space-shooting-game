@@ -1,53 +1,19 @@
 ﻿/// <reference path="phaser.min.js" />
 
-console.log('width: ' + window.innerWidth);
-console.log('height: ' + window.innerHeight);
-
 var gameRatio = window.innerWidth / window.innerHeight;
+var game = new Phaser.Game(Math.ceil(640 * gameRatio), 640, Phaser.CANVAS); 
 
-console.log('gameRatio: ', gameRatio, ' ', Math.ceil(gameRatio));
-
-var game = new Phaser.Game(Math.ceil(640 * gameRatio), 640, Phaser.CANVAS);
-
-var i = 0, scoreLimit = 0;
-
-if (window.innerWidth < 500) {
-  i = 9;
-  scoreLimit = 3600;
-} else if (window.innerWidth < 900) {
-  i = 10;
-  scoreLimit = 4000;
-}
-
-else {
-  i = 13;
-  scoreLimit = 5200;
-}
-
-var spacefield;
-
-var bgVelocity;
-
-var player;
-
-var cursors;
-
-var bullets;
-var fireButton;
-var bulletTime = 0;
-
-var enemies;
-
-var score = 0;
-var scoreText;
-var winText;
-
-var firstRunLandscape;
-
-var fx;
-
-var left = false;
-var right = false;
+var spacefield,
+    bgVelocity = 3,
+    player,
+    cursors,
+    bullets,fireButton,bulletTime = 0,
+    enemies,
+    score = 0,scoreText,winText,
+    firstRunLandscape,
+    fx,
+    left = false,right = false,
+    i = 0, scoreLimit = 0;
 
 var audioJSON = {
   spritemap: {
@@ -59,6 +25,17 @@ var audioJSON = {
   }
 };
 
+if (window.innerWidth < 500) {
+  i = 9;
+  scoreLimit = 3600;
+} else if (window.innerWidth < 900) {
+  i = 10;
+  scoreLimit = 4000;
+} else {
+  i = 13;
+  scoreLimit = 5200;
+}
+
 var mainState = {
   preload: function () {
     firstRunLandscape = game.scale.isGameLandscape;
@@ -69,24 +46,23 @@ var mainState = {
     game.scale.leaveIncorrectOrientation.add(handleCorrect);
 
     game.load.image('starfield', "assets/space.jpg");
-    game.load.image('player', "assets/spaceship.png");
+    game.load.image('player', "assets/kotsberg.png");
     game.load.image('bullet', "assets/bullet.png");
-    game.load.image('enemy', 'assets/enemy.png');
-    game.load.audiosprite('sfx', 'assets/fx_mixdown.ogg', null, audioJSON);
-
-    game.load.spritesheet('left', 'assets/left.png', 64, 64);
-    game.load.spritesheet('right', 'assets/right.png', 64, 64);
-
+    game.load.image('enemy', 'assets/carlsberg.png');
+    game.load.spritesheet('left', 'assets/left.png', 50, 50);
+    game.load.spritesheet('right', 'assets/right.png', 50, 50);
+    game.load.audiosprite('sfx', 'assets/sounds/shot-sound.ogg', null, audioJSON);
   },
   create: function () {
     spacefield = game.add.tileSprite(0, 0, Math.ceil(640 * gameRatio), 640, 'starfield');
-    bgVelocity = 3;
     player = game.add.sprite(game.world.centerX - 60, game.world.centerY + 120, 'player');
     game.physics.enable(player, Phaser.Physics.ARCADE);
     cursors = game.input.keyboard.createCursorKeys();
     
-    fx = game.add.audioSprite('sfx');
-    fx.allowMultiple = true;
+    enemies = game.add.group();
+    enemies.enableBody = true;
+    enemies.physicsBodyType = Phaser.Physics.ARCADE;
+    createEnemies();
 
     bullets = game.add.group();
     bullets.enableBody = true;
@@ -98,73 +74,58 @@ var mainState = {
     bullets.setAll('checkWorldBounds', true);
 
     fireButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
-
     game.input.onTap.add(function () {
-
       if(!left && !right){
         fireBullet();
       }
-
     }, this);
 
+    fx = game.add.audioSprite('sfx');
+
     if (!game.device.desktop) {
-      buttonleft = game.add.button(game.world.centerX + 325, game.world.centerY + 250, 'left', null, this, 0, 1, 0, 1);
+      buttonleft = game.add.button(50, game.world.centerY + 250, 'left', null, this, 0, 1, 0, 1);
       buttonleft.fixedToCamera = true;
       buttonleft.events.onInputOver.add(function () { left = true; });
       buttonleft.events.onInputOut.add(function () { left = false; });
       buttonleft.events.onInputDown.add(function () { left = true; });
       buttonleft.events.onInputUp.add(function () { left = false; });
 
-      buttonright = game.add.button(game.world.centerX + 425, game.world.centerY + 250, 'right', null, this, 0, 1, 0, 1);
+      buttonright = game.add.button(1.9 * screen.availWidth - 50, game.world.centerY + 250, 'right', null, this, 0, 1, 0, 1);
       buttonright.fixedToCamera = true;
       buttonright.events.onInputOver.add(function () { right = true; });
       buttonright.events.onInputOut.add(function () { right = false; });
       buttonright.events.onInputDown.add(function () { right = true; });
       buttonright.events.onInputUp.add(function () { right = false; });
     }
-    enemies = game.add.group();
-    enemies.enableBody = true;
-    enemies.physicsBodyType = Phaser.Physics.ARCADE;
 
-    createEnemies();
-
-    scoreText = game.add.text(10, game.world.centerY + 270, 'Score: ', { font: '32px monospace', fill: '#7bb60c' });
+    scoreText = game.add.text(game.world.centerX - 110, game.world.centerY + 270, 'Score: ', { font: '32px monospace', fill: '#7bb60c' });
     winText = game.add.text(game.world.centerX - 150, game.world.centerY - 50, '    Congrats!! \nYou Win the game!!', { font: '32px monospace', fill: '#7bb60c' });
     winText.visible = false;
-
   },
   update: function () {
-    game.physics.arcade.overlap(bullets, enemies, collisionHandler, null, this);
     player.body.velocity.x = 0;
     spacefield.tilePosition.y += bgVelocity;
+    game.physics.arcade.overlap(bullets, enemies, collisionHandler, null, this);
+
     if (cursors.left.isDown || left) {
       player.body.velocity.x = -350;
     }
-
     if (cursors.right.isDown || right) {
       player.body.velocity.x = 350;
     }
-
     if (fireButton.isDown || game.input.activePointer.leftButton.isDown) {
       fireBullet();
     }
-
     scoreText.text = 'Score: ' + score;
     if (score == scoreLimit) {
       winText.visible = true;
-      scoreText.visible = false;
+      scoreText.visible = true;
       setTimeout(function () {
         window.location.assign("http://visit.2626.today/");
-      }, 2000);
+      }, 3000);
     }
   }
 };
-
-function handleIncorrect() {
-  if (!game.device.desktop) {
-    document.getElementById("turn").style.display = "block";
-  }
-}
 
 function handleCorrect() {
   window.location.reload();
@@ -180,15 +141,9 @@ function handleCorrect() {
   }
 }
 
-function fireBullet() {
-  if (game.time.now > bulletTime) {
-    bullet = bullets.getFirstExists(false);
-    if (bullet) {
-      fx.play('shot');
-      bullet.reset(player.x + 25, player.y);
-      bullet.body.velocity.y = -400;
-      bulletTime = game.time.now + 200;
-    }
+function handleIncorrect() {
+  if (!game.device.desktop) {
+    document.getElementById("turn").style.display = "block";
   }
 }
 
@@ -208,6 +163,18 @@ function createEnemies() {
 
 function descend() {
   enemies.y += 20;
+}
+
+function fireBullet() {
+  if (game.time.now > bulletTime) {
+    bullet = bullets.getFirstExists(false);
+    if (bullet) {
+      fx.play('shot');
+      bullet.reset(player.x + 25, player.y);
+      bullet.body.velocity.y = -400;
+      bulletTime = game.time.now + 200;
+    }
+  }
 }
 
 function collisionHandler(bullet, enemy) {
