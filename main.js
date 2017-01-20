@@ -69,9 +69,9 @@ var mainState = {
     game.scale.leaveIncorrectOrientation.add(handleCorrect);
 
     game.load.image('starfield', "assets/space.jpg");
-    game.load.image('player', "assets/kotsberg.png");
+    game.load.image('player', "assets/spaceship.png");
     game.load.image('bullet', "assets/bullet.png");
-    game.load.image('enemy', 'assets/carlsberg.png');
+    game.load.image('enemy', 'assets/enemy.png');
     game.load.audiosprite('sfx', 'assets/fx_mixdown.ogg', null, audioJSON);
 
     game.load.spritesheet('left', 'assets/left.png', 64, 64);
